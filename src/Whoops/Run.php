@@ -277,7 +277,19 @@ class Run
             // buffers before sending our own output:
             if ($willQuit) {
                 while (ob_get_level() > 0) {
-                    ob_end_clean();
+                    //On PHP 5.3.3 (FPM) if zlib.output_compression is "On"
+                    //doing ob_end_clean() will launch an error (failed to delete buffer zlib output_compression)
+                    //that will be caught by this very handler at the same time, looping forever inside of this
+                    //WHILE block, if the user can't disable zlib.output_compression or if is it needed
+                    //a workaround could be not to call ob_end_clean() but exiting and let flush() do its work
+                    $obStatus = ob_get_status();
+                    if ($obStatus['name'] !== 'zlib output compression'){
+                        //Default out buffer, it's safe to clear the buffer this way
+                        ob_end_clean();
+                    } else {
+                        //Exit the loop and finally flush before exiting
+                        break;
+                    }
                 }
             }
 
